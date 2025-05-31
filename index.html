@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A memory store for Jay and Chico ❤️ ">
+    <title>Jay and Chico ❤️</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@300;400;500;600&family=Inter:wght@300;400;500;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden;
+            font-weight: 300;
+            letter-spacing: 0.01em;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #8b5a6b;
+        }
+
+        .header h1 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 3rem;
+            font-weight: 300;
+            text-shadow: 0 2px 20px rgba(139, 90, 107, 0.3);
+            animation: titleFloat 6s ease-in-out infinite;
+            letter-spacing: 0.02em;
+            line-height: 1.2;
+        }
+
+        @keyframes titleFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .gallery-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            height: 600px;
+            perspective: 1000px;
+        }
+
+        .photo-stack {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+        }
+
+        .polaroid {
+            position: absolute;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 8px 25px rgba(139, 90, 107, 0.4);
+            cursor: grab;
+            user-select: none;
+            transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            padding: 15px;
+            padding-bottom: 60px;
+            transform-origin: center center;
+        }
+
+        .polaroid:active {
+            cursor: grabbing;
+        }
+
+        .polaroid img {
+            width: 100%;
+            height: auto;
+            border-radius: 4px;
+            display: block;
+            max-height: 400px;
+            object-fit: cover;
+            transition: filter 0.3s ease;
+        }
+
+        .polaroid.current {
+            z-index: 100;
+            transform: translateZ(0) scale(1) rotate(0deg);
+            opacity: 1;
+            filter: brightness(1) saturate(1);
+        }
+
+        .polaroid.next {
+            z-index: 90;
+            transform: translateZ(-10px) scale(0.95) rotate(2deg) translateX(20px);
+            opacity: 0.8;
+            filter: brightness(0.9) saturate(0.8);
+        }
+
+        .polaroid.prev {
+            z-index: 80;
+            transform: translateZ(-20px) scale(0.9) rotate(-2deg) translateX(-20px);
+            opacity: 0.6;
+            filter: brightness(0.8) saturate(0.7);
+        }
+
+        .polaroid.hidden {
+            z-index: 70;
+            transform: translateZ(-30px) scale(0.7) rotate(1deg);
+            opacity: 0;
+            filter: brightness(0.6) saturate(0.5);
+        }
+
+        /* Smooth entrance animation for new photos */
+        .polaroid.entering {
+            animation: photoEnter 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+
+        @keyframes photoEnter {
+            0% {
+                transform: translateZ(-50px) scale(0.3) rotate(15deg);
+                opacity: 0;
+                filter: blur(5px);
+            }
+            50% {
+                transform: translateZ(-10px) scale(1.1) rotate(-2deg);
+                opacity: 0.8;
+                filter: blur(1px);
+            }
+            100% {
+                transform: translateZ(0) scale(1) rotate(0deg);
+                opacity: 1;
+                filter: blur(0px);
+            }
+        }
+
+        /* Smooth exit animation */
+        .polaroid.exiting {
+            animation: photoExit 0.6s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards;
+        }
+
+        @keyframes photoExit {
+            0% {
+                transform: translateZ(0) scale(1) rotate(0deg);
+                opacity: 1;
+                filter: blur(0px);
+            }
+            100% {
+                transform: translateZ(-50px) scale(0.3) rotate(-15deg);
+                opacity: 0;
+                filter: blur(3px);
+            }
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.9);
+            color: #8b5a6b;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(139, 90, 107, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255, 182, 193, 0.6) 0%, transparent 70%);
+            border-radius: 50%;
+            transition: transform 0.4s ease;
+        }
+
+        .nav-btn:hover {
+            background: white;
+            transform: scale(1.15) rotate(5deg);
+            box-shadow: 0 6px 20px rgba(139, 90, 107, 0.4);
+        }
+
+        .nav-btn:hover::before {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .nav-btn:active {
+            transform: scale(0.95);
+        }
+
+        .counter {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 20px;
+            border-radius: 25px;
+            color: #8b5a6b;
+            font-family: 'Inter', sans-serif;
+            font-weight: 400;
+            font-size: 0.9rem;
+            letter-spacing: 0.05em;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 4px 20px rgba(139, 90, 107, 0.25);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .counter.updating {
+            transform: scale(1.1);
+            background: rgba(255, 192, 203, 0.9);
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #8b5a6b;
+            font-family: 'Inter', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 300;
+            letter-spacing: 0.02em;
+            z-index: 1000;
+            text-align: center;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #8b5a6b;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+            @media (max-width: 480px) {
+                .header h1 {
+                    font-size: 2.2rem;
+                    letter-spacing: 0.01em;
+                }
+                
+                .gallery-container {
+                    max-width: 350px;
+                    height: 500px;
+                }
+                
+                .polaroid {
+                    padding: 10px;
+                    padding-bottom: 40px;
+                }
+                
+                .nav-btn {
+                    width: 45px;
+                    height: 45px;
+                    font-size: 18px;
+                }
+
+                .counter {
+                    font-size: 0.0rem;
+                    padding: 0px 0px;
+                    display: none;
+                }
+
+                .swipe-indicator {
+                    font-size: 0.8rem;
+                    bottom: 110px;
+                }
+            }
+
+        .swipe-indicator {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(139, 90, 107, 0.7);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 300;
+            letter-spacing: 0.03em;
+            animation: pulseGlow 2s ease-in-out infinite;
+            text-transform: lowercase;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { 
+                opacity: 0.4;
+                transform: translateX(-50%) scale(1);
+            }
+            50% { 
+                opacity: 0.8;
+                transform: translateX(-50%) scale(1.05);
+                text-shadow: 0 0 10px rgba(139, 90, 107, 0.3);
+            }
+        }
+
+        /* Magical sparkle effect for random button */
+        .nav-btn.sparkle {
+            animation: sparkleRotate 0.8s ease-in-out;
+        }
+
+        @keyframes sparkleRotate {
+            0% { transform: scale(1) rotate(0deg); }
+            25% { transform: scale(1.2) rotate(90deg); }
+            50% { transform: scale(1.1) rotate(180deg); }
+            75% { transform: scale(1.2) rotate(270deg); }
+            100% { transform: scale(1) rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Our Memories ♡</h1>
+    </div>
+
+    <div class="loading" id="loading" style="display: none;">Loading photos...</div>
+
+    <div class="gallery-container" id="galleryContainer" style="display: none;">
+        <div class="photo-stack" id="photoStack"></div>
+        <div class="swipe-indicator" id="swipeIndicator"></div>
+    </div>
+
+    <div class="counter" id="counter" style="display: none;">1 / 0</div>
+
+    <div class="controls" id="controls" style="display: none;">
+        <button class="nav-btn" id="prevBtn">‹</button>
+        <button class="nav-btn" id="randomBtn" title="Random Photo">🎲</button>
+        <button class="nav-btn" id="nextBtn">›</button>
+    </div>
+
+    <script>
+        class PolaroidGallery {
+            constructor() {
+                this.photos = [];
+                this.currentIndex = 0;
+                this.isTransitioning = false;
+                this.touchStartX = 0;
+                this.touchStartY = 0;
+                this.minSwipeDistance = 50;
+                
+                this.initializeElements();
+                this.setupEventListeners();
+                this.loadPhotos();
+            }
+
+            initializeElements() {
+                this.loading = document.getElementById('loading');
+                this.galleryContainer = document.getElementById('galleryContainer');
+                this.photoStack = document.getElementById('photoStack');
+                this.counter = document.getElementById('counter');
+                this.controls = document.getElementById('controls');
+                this.prevBtn = document.getElementById('prevBtn');
+                this.nextBtn = document.getElementById('nextBtn');
+                this.randomBtn = document.getElementById('randomBtn');
+                this.swipeIndicator = document.getElementById('swipeIndicator');
+            }
+
+            setupEventListeners() {
+                this.prevBtn.addEventListener('click', () => this.previousPhoto());
+                this.nextBtn.addEventListener('click', () => this.nextPhoto());
+                this.randomBtn.addEventListener('click', () => this.randomPhoto());
+                
+                // Touch events for swiping
+                this.galleryContainer.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: true });
+                this.galleryContainer.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: true });
+                this.galleryContainer.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: true });
+                
+                // Keyboard navigation
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowLeft') this.previousPhoto();
+                    if (e.key === 'ArrowRight') this.nextPhoto();
+                    if (e.key === ' ' || e.key === 'r' || e.key === 'R') {
+                        e.preventDefault();
+                        this.randomPhoto();
+                    }
+                });
+
+                // Hide swipe indicator after first interaction
+                let interactionCount = 0;
+                const hideIndicator = () => {
+                    interactionCount++;
+                    if (interactionCount >= 2) {
+                        this.swipeIndicator.style.opacity = '0';
+                        this.swipeIndicator.style.transition = 'opacity 1s ease';
+                    }
+                };
+                
+                this.prevBtn.addEventListener('click', hideIndicator);
+                this.nextBtn.addEventListener('click', hideIndicator);
+                this.randomBtn.addEventListener('click', hideIndicator);
+                this.galleryContainer.addEventListener('touchend', hideIndicator);
+            }
+
+            async loadPhotos() {
+                this.loading.style.display = 'block';
+                this.loading.textContent = 'Loading photos';
+                
+                try {
+                    // Configuration based on your photo naming pattern
+                    const config = {
+                        prefix: "IMG_",
+                        extension: "jpg",
+                        startNumber: 1,
+                        numberPadding: 4,
+                        maxPhotos: 2000
+                    };
+                    
+                    const photoPromises = [];
+                    let loadedCount = 0;
+                    
+                    // Generate photo URLs based on your naming pattern: IMG_0001.jpg, IMG_0002.jpg, etc.
+                    for (let i = config.startNumber; i <= config.maxPhotos; i++) {
+                        const paddedNumber = i.toString().padStart(config.numberPadding, '0');
+                        const filename = `${config.prefix}${paddedNumber}.${config.extension}`;
+                        const photoPath = `photos/${filename}`;
+                        
+                        photoPromises.push(
+                            this.tryLoadPhoto(photoPath, filename).then(result => {
+                                if (result) {
+                                    loadedCount++;
+                                    // Update progress every 50 photos
+                                    if (loadedCount % 50 === 0) {
+                                        this.loading.textContent = `Loading... memories found`;
+                                    }
+                                }
+                                return result;
+                            })
+                        );
+                    }
+                    
+                    // Also try alternative extensions
+                    const altExtensions = ['jpeg', 'png', 'JPG', 'JPEG', 'PNG'];
+                    for (const ext of altExtensions) {
+                        for (let i = config.startNumber; i <= Math.min(100, config.maxPhotos); i++) {
+                            const paddedNumber = i.toString().padStart(config.numberPadding, '0');
+                            const filename = `${config.prefix}${paddedNumber}.${ext}`;
+                            const photoPath = `photos/${filename}`;
+                            photoPromises.push(this.tryLoadPhoto(photoPath, filename));
+                        }
+                    }
+                    
+                    // Wait for all attempts to complete
+                    const results = await Promise.allSettled(photoPromises);
+                    
+                    // Filter successful loads and remove duplicates
+                    const photoMap = new Map();
+                    results
+                        .filter(result => result.status === 'fulfilled' && result.value)
+                        .forEach(result => {
+                            const photo = result.value;
+                            const baseNumber = photo.name.match(/\d+/)?.[0];
+                            if (baseNumber && !photoMap.has(baseNumber)) {
+                                photoMap.set(baseNumber, photo);
+                            }
+                        });
+                    
+                    this.photos = Array.from(photoMap.values());
+                    
+                    if (this.photos.length === 0) {
+                        this.loading.textContent = 'No photos found. Make sure your photos are named like IMG_0001.jpg in the /photos folder.';
+                        return;
+                    }
+                    
+                    // Sort photos by the number in filename
+                    this.photos.sort((a, b) => {
+                        const numA = parseInt(a.name.match(/\d+/)?.[0] || '0');
+                        const numB = parseInt(b.name.match(/\d+/)?.[0] || '0');
+                        return numA - numB;
+                    });
+                    
+                    this.loading.style.display = 'none';
+                    this.initializeGallery();
+                    
+                } catch (error) {
+                    this.loading.textContent = 'Error loading photos. Please check your /photos folder.';
+                    console.error('Error loading photos:', error);
+                }
+            }
+
+            tryLoadPhoto(src, name) {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => resolve({ src, name });
+                    img.onerror = () => resolve(null);
+                    img.src = src;
+                });
+            }
+
+            initializeGallery() {
+                if (this.photos.length === 0) return;
+
+                this.currentIndex = 0;
+                this.createPolaroids();
+                this.updateDisplay();
+                
+                this.galleryContainer.style.display = 'block';
+                this.counter.style.display = 'block';
+                this.controls.style.display = 'flex';
+            }
+
+            createPolaroids() {
+                this.photoStack.innerHTML = '';
+                
+                this.photos.forEach((photo, index) => {
+                    const polaroid = document.createElement('div');
+                    polaroid.className = 'polaroid';
+                    
+                    const img = document.createElement('img');
+                    img.src = photo.src;
+                    img.alt = photo.name;
+                    
+                    // Handle different aspect ratios
+                    img.onload = () => {
+                        const aspectRatio = img.naturalWidth / img.naturalHeight;
+                        if (aspectRatio > 1.5) {
+                            img.style.width = '100%';
+                            img.style.height = 'auto';
+                        } else if (aspectRatio < 0.8) {
+                            img.style.height = '400px';
+                            img.style.width = 'auto';
+                            img.style.margin = '0 auto';
+                        }
+                    };
+                    
+                    polaroid.appendChild(img);
+                    this.photoStack.appendChild(polaroid);
+                });
+            }
+
+            updateDisplay() {
+                const polaroids = this.photoStack.querySelectorAll('.polaroid');
+                
+                // Add counter animation
+                this.counter.classList.add('updating');
+                setTimeout(() => this.counter.classList.remove('updating'), 300);
+                
+                polaroids.forEach((polaroid, index) => {
+                    polaroid.className = 'polaroid';
+                    
+                    if (index === this.currentIndex) {
+                        polaroid.classList.add('current');
+                        // Add entrance animation for new current photo
+                        if (this.isTransitioning) {
+                            polaroid.classList.add('entering');
+                            setTimeout(() => polaroid.classList.remove('entering'), 800);
+                        }
+                    } else if (index === (this.currentIndex + 1) % this.photos.length) {
+                        polaroid.classList.add('next');
+                    } else if (index === (this.currentIndex - 1 + this.photos.length) % this.photos.length) {
+                        polaroid.classList.add('prev');
+                    } else {
+                        polaroid.classList.add('hidden');
+                    }
+                });
+                
+                this.counter.textContent = `${this.currentIndex + 1} / ${this.photos.length}`;
+            }
+
+            nextPhoto() {
+                if (this.isTransitioning || this.photos.length === 0) return;
+                
+                this.isTransitioning = true;
+                this.currentIndex = (this.currentIndex + 1) % this.photos.length;
+                this.updateDisplay();
+                
+                setTimeout(() => {
+                    this.isTransitioning = false;
+                }, 600);
+            }
+
+            previousPhoto() {
+                if (this.isTransitioning || this.photos.length === 0) return;
+                
+                this.isTransitioning = true;
+                this.currentIndex = (this.currentIndex - 1 + this.photos.length) % this.photos.length;
+                this.updateDisplay();
+                
+                setTimeout(() => {
+                    this.isTransitioning = false;
+                }, 600);
+            }
+
+            randomPhoto() {
+                if (this.isTransitioning || this.photos.length <= 1) return;
+                
+                this.isTransitioning = true;
+                
+                // Get a random index that's different from current
+                let randomIndex;
+                do {
+                    randomIndex = Math.floor(Math.random() * this.photos.length);
+                } while (randomIndex === this.currentIndex);
+                
+                // Add sparkle animation to random button
+                this.randomBtn.classList.add('sparkle');
+                
+                setTimeout(() => {
+                    this.currentIndex = randomIndex;
+                    this.updateDisplay();
+                    
+                    setTimeout(() => {
+                        this.randomBtn.classList.remove('sparkle');
+                        this.isTransitioning = false;
+                    }, 200);
+                }, 400);
+            }
+
+            handleTouchStart(e) {
+                this.touchStartX = e.touches[0].clientX;
+                this.touchStartY = e.touches[0].clientY;
+            }
+
+            handleTouchMove(e) {
+                if (!this.touchStartX || !this.touchStartY) return;
+                
+                const touchX = e.touches[0].clientX;
+                const touchY = e.touches[0].clientY;
+                
+                const diffX = this.touchStartX - touchX;
+                const diffY = this.touchStartY - touchY;
+                
+                // Only handle horizontal swipes (ignore vertical scrolling)
+                if (Math.abs(diffX) > Math.abs(diffY)) {
+                    e.preventDefault();
+                }
+            }
+
+            handleTouchEnd(e) {
+                if (!this.touchStartX || !this.touchStartY) return;
+                
+                const touchEndX = e.changedTouches[0].clientX;
+                const touchEndY = e.changedTouches[0].clientY;
+                
+                const diffX = this.touchStartX - touchEndX;
+                const diffY = this.touchStartY - touchEndY;
+                
+                // Only process horizontal swipes
+                if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > this.minSwipeDistance) {
+                    if (diffX > 0) {
+                        this.nextPhoto();
+                    } else {
+                        this.previousPhoto();
+                    }
+                }
+                
+                this.touchStartX = 0;
+                this.touchStartY = 0;
+            }
+        }
+
+        // Initialize the gallery when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new PolaroidGallery();
+        });
+    </script>
+</body>
+</html>
